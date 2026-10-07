@@ -1,34 +1,222 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SRACO | ادارة أوامر العمل</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<meta name="theme-color" content="#1d4ed8">
+<title>SRACO | نظام إدارة أوامر العمل</title>
 
-    <!-- الأيقونة -->
-    <link rel="icon" href="https://cafs.org.sa/wp-content/uploads/2023/08/SRACO-Logo.png" type="image/png">
-    <link rel="apple-touch-icon" href="https://cafs.org.sa/wp-content/uploads/2023/08/SRACO-Logo.png">
+<link rel="icon" href="https://cafs.org.sa/wp-content/uploads/2023/08/SRACO-Logo.png" type="image/png">
+<link rel="apple-touch-icon" href="https://cafs.org.sa/wp-content/uploads/2023/08/SRACO-Logo.png">
 
-    <style>
-        html, body {
-            margin: 0;
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-        }
-        
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: 0;
-        }
-    </style>
+<!--
+  تسريع التحميل:
+  الاتصال مسبقاً بنطاقات Google (Apps Script) وبالخطوط والأيقونات
+  يوفّر زمن DNS + TLS قبل بدء تحميل التطبيق داخل الإطار.
+-->
+<link rel="preconnect" href="https://script.google.com" crossorigin>
+<link rel="preconnect" href="https://script.googleusercontent.com" crossorigin>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
+<link rel="dns-prefetch" href="https://script.google.com">
+<link rel="dns-prefetch" href="https://script.googleusercontent.com">
+
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+    :root {
+        --brand: #1d4ed8;
+        --brand-2: #0ea5e9;
+        --ink: #0f172a;
+        --muted: #64748b;
+    }
+
+    * { box-sizing: border-box; }
+
+    html, body {
+        margin: 0;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #eef2f7;
+        font-family: 'Cairo', 'Segoe UI', Tahoma, Arial, sans-serif;
+        color: var(--ink);
+    }
+
+    /* ============================================================
+       شاشة التحميل (تظهر فوراً — قبل وصول التطبيق)
+       ============================================================ */
+    #loader {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #0ea5e9 100%);
+        color: #fff;
+        transition: opacity 0.45s ease, visibility 0.45s ease;
+    }
+    #loader.hide { opacity: 0; visibility: hidden; }
+
+    .ld-logo {
+        width: 84px;
+        height: 84px;
+        border-radius: 24px;
+        background: rgba(255, 255, 255, 0.14);
+        border: 1px solid rgba(255, 255, 255, 0.35);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 18px 45px rgba(0, 0, 0, 0.28);
+    }
+    .ld-logo img { max-width: 62px; max-height: 62px; object-fit: contain; }
+    .ld-logo .ld-fallback { font-size: 34px; }
+
+    .ld-title { font-size: 22px; font-weight: 800; margin: 4px 0 0; letter-spacing: 0.2px; }
+    .ld-sub { font-size: 13px; opacity: 0.9; font-weight: 600; margin-top: -6px; }
+
+    .ld-bar {
+        width: min(340px, 74vw);
+        height: 6px;
+        border-radius: 30px;
+        background: rgba(255, 255, 255, 0.22);
+        overflow: hidden;
+        margin-top: 8px;
+    }
+    .ld-bar span {
+        display: block;
+        height: 100%;
+        width: 38%;
+        border-radius: 30px;
+        background: linear-gradient(90deg, #ffffff, #bfdbfe);
+        animation: ldSlide 1.15s ease-in-out infinite;
+    }
+    @keyframes ldSlide {
+        0%   { transform: translateX(115%); }
+        100% { transform: translateX(-320%); }
+    }
+
+    .ld-note { font-size: 11.5px; opacity: 0.82; font-weight: 600; }
+
+    #ldSlow {
+        display: none;
+        margin-top: 6px;
+        text-align: center;
+        max-width: 420px;
+        padding: 0 16px;
+    }
+    #ldSlow.show { display: block; }
+    #ldSlow p { font-size: 12.5px; margin: 0 0 8px; opacity: 0.95; }
+    #ldSlow a {
+        display: inline-block;
+        background: #ffffff;
+        color: var(--brand);
+        text-decoration: none;
+        font-weight: 800;
+        font-size: 12.5px;
+        border-radius: 30px;
+        padding: 9px 20px;
+        box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+    }
+
+    /* ============================================================
+       الإطار (يظهر تدريجياً بعد اكتمال تحميل التطبيق)
+       ============================================================ */
+    #appFrame {
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+        opacity: 0;
+        transition: opacity 0.4s ease;
+        background: #eef2f7;
+    }
+    #appFrame.ready { opacity: 1; }
+</style>
 </head>
- 
+
 <body>
+
+<!-- ===================== شاشة التحميل ===================== -->
+<div id="loader" role="status" aria-live="polite">
+    <div class="ld-logo">
+        <img src="https://cafs.org.sa/wp-content/uploads/2023/08/SRACO-Logo.png"
+             alt="SRACO"
+             onerror="this.parentNode.innerHTML='<span class=&quot;ld-fallback&quot;>🏥</span>';">
+    </div>
+    <h1 class="ld-title" id="ldTitle">نظام إدارة أوامر العمل</h1>
+    <div class="ld-sub">مستشفى العيون التخصصي · مستشفى الرعاية المديدة</div>
+    <div class="ld-bar"><span></span></div>
+    <div class="ld-note">يتم تجهيز النظام… يرجى الانتظار لحظات</div>
+
+    <div id="ldSlow">
+        <p>يبدو أن الاتصال بطيء. يمكنك المتابعة عبر فتح النظام في نافذة مستقلة:</p>
+        <a id="ldDirectLink" href="#" target="_blank" rel="noopener">فتح النظام في نافذة جديدة ↗</a>
+    </div>
+</div>
+
+<!-- ===================== التطبيق =====================
+     ⚠️ استبدل الرابط التالي برابط النشر الخاص بك (Deploy → Web app → /exec)
+-->
 <iframe
+    id="appFrame"
+    title="نظام إدارة أوامر العمل"
     src="https://script.google.com/macros/s/AKfycbwbvFJqYIay5RFRtq4qrSEQq4iz6CiPvIm5rOVmMaQN_9M-DMk9OVh3T-FJ7tvI707cWQ/exec"
-    allow="geolocation">
+    allow="geolocation"
+    loading="eager"
+    referrerpolicy="no-referrer-when-downgrade">
 </iframe>
+
+<noscript>
+    <p style="text-align:center;padding:24px;">
+        يلزم تفعيل JavaScript.
+        <a href="https://script.google.com/macros/s/AKfycbwbvFJqYIay5RFRtq4qrSEQq4iz6CiPvIm5rOVmMaQN_9M-DMk9OVh3T-FJ7tvI707cWQ/exec">افتح النظام مباشرة</a>
+    </p>
+</noscript>
+
+<script>
+    (function () {
+        var frame = document.getElementById('appFrame');
+        var loader = document.getElementById('loader');
+        var slow = document.getElementById('ldSlow');
+        var direct = document.getElementById('ldDirectLink');
+        var note = document.querySelector('.ld-note');
+
+        direct.href = frame.src;
+
+        var started = Date.now();
+        var done = false;
+
+        function reveal() {
+            if (done) return;
+            done = true;
+            frame.classList.add('ready');
+            loader.classList.add('hide');
+            // إزالة شاشة التحميل من التخطيط بعد انتهاء التأثير
+            setTimeout(function () { loader.style.display = 'none'; }, 500);
+        }
+
+        // اكتمال تحميل مستند التطبيق داخل الإطار
+        frame.addEventListener('load', function () {
+            // مهلة قصيرة لإعطاء التطبيق فرصة أول رسم
+            setTimeout(reveal, 220);
+        });
+
+        // شبكة أمان: لا تبقَ شاشة التحميل أكثر من اللازم
+        setTimeout(function () {
+            if (!done) { note.textContent = 'يتم الآن تحميل النظام… قد يستغرق بضع ثوانٍ في أول مرة'; }
+        }, 4000);
+
+        setTimeout(function () {
+            if (!done) { slow.classList.add('show'); }
+        }, 12000);
+
+        // ملاحظة: لا نُخفي الشاشة إلا عند نجاح التحميل،
+        // حتى لا يرى المستخدم صفحة فارغة.
+    })();
+</script>
 </body>
 </html>
